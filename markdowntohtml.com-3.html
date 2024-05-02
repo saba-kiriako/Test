@@ -635,3 +635,78 @@ In summary, Tenacity is a powerful tool for enhancing the resilience of applicat
 </ul>
 <p>These additional code examples provide further clarity and practical implementation details for error handling in Kedro projects, covering custom error messages, logging, validation, retry mechanisms, and testing.</p>
 </body></html>
+
+Certainly! Custom error messages are an important aspect of any application, as they help users and developers understand what went wrong and how to possibly fix it. By creating custom error classes, you can provide more specific error information tailored to the context of your application. Here are some additional examples that can be used in a Kedro project to handle different types of errors more effectively:
+
+### Example 1: Data Validation Error
+This example shows a custom error class that could be used when data does not meet certain validation criteria. This can be useful in scenarios where your pipeline expects data in a specific format or meeting particular constraints.
+
+```python
+class DataValidationError(Exception):
+    """Exception raised for errors in the data validation process."""
+    def __init__(self, message, data_id=None):
+        super().__init__(message)
+        self.data_id = data_id
+
+# Example usage:
+def validate_data(data, schema):
+    if not conforms_to_schema(data, schema):
+        raise DataValidationError("Data does not conform to expected schema.", data_id=data.get('id'))
+```
+
+### Example 2: Configuration Error
+This example involves an error related to configuration issues, which can occur when there are missing or incorrect settings required for the application to run properly.
+
+```python
+class ConfigurationError(Exception):
+    """Exception raised for errors in the application configuration."""
+    def __init__(self, message, config_key):
+        super().__init__(f"{message}. Check the configuration for '{config_key}'.")
+        self.config_key = config_key
+
+# Example usage:
+def load_configuration(config_key):
+    config_value = get_configuration(config_key)
+    if config_value is None:
+        raise ConfigurationError("Missing required configuration", config_key)
+```
+
+### Example 3: Resource Unavailable Error
+This example is for a situation where an expected external resource (like a database or API) is unavailable.
+
+```python
+class ResourceUnavailableError(Exception):
+    """Exception raised when an external resource is unavailable."""
+    def __init__(self, resource_name, retry_after_seconds):
+        super().__init__(f"{resource_name} is unavailable. Retry after {retry_after_seconds} seconds.")
+        self.resource_name = resource_name
+        self.retry_after_seconds = retry_after_seconds
+
+# Example usage:
+def access_resource(resource):
+    try:
+        resource.connect()
+    except ConnectionError:
+        raise ResourceUnavailableError(resource.name, 30)
+```
+
+### Example 4: Permission Denied Error
+Lastly, an example dealing with permission issues, which are common in systems where access control is enforced.
+
+```python
+class PermissionDeniedError(Exception):
+    """Exception raised when an operation is blocked due to insufficient permissions."""
+    def __init__(self, operation, user_role):
+        super().__init__(f"Permission denied for operation '{operation}' with role '{user_role}'.")
+        self.operation = operation
+        self.user_role = user_role
+
+# Example usage:
+def delete_file(user, file):
+    if not user.has_permission('delete'):
+        raise PermissionDeniedError('delete', user.role)
+    file.delete()
+```
+
+### Importance of Custom Error Classes
+These examples illustrate how custom error classes can provide more specific information about the nature of the error, which part of the system is affected, and what the probable cause might be. This can significantly aid in debugging and troubleshooting, especially in complex systems like those typically built with Kedro. Furthermore, well-defined error messages improve the maintainability of the code and make it easier for others to understand and fix issues quickly.
