@@ -710,3 +710,71 @@ def delete_file(user, file):
 
 ### Importance of Custom Error Classes
 These examples illustrate how custom error classes can provide more specific information about the nature of the error, which part of the system is affected, and what the probable cause might be. This can significantly aid in debugging and troubleshooting, especially in complex systems like those typically built with Kedro. Furthermore, well-defined error messages improve the maintainability of the code and make it easier for others to understand and fix issues quickly.
+
+
+
+Let's expand Slide 6 and Slide 7 with more comprehensive details and practical guidelines to enhance understanding.
+
+### Slide 6: Automating Drift Detection with Apache Airflow
+- **Integration of MLflow with Airflow:** 
+  - **Purpose:** Airflow acts as an orchestrator for MLflow tasks, scheduling and automating the execution of model evaluations to check for drift on a regular basis.
+  - **Benefits:** Automating with Airflow ensures that drift checks are performed consistently and efficiently, minimizing manual oversight and reducing the likelihood of missed drift detections.
+- **Example Workflow Configuration:**
+  - **Step 1:** Set up the Airflow environment. This involves installing Airflow and setting up the necessary configurations, including the scheduler, executor, and web server components.
+  - **Step 2:** Define the Airflow DAG (Directed Acyclic Graph). A DAG is a collection of tasks you want to run, organized in a way that reflects their relationships and dependencies.
+    ```python
+    from airflow import DAG
+    from airflow.operators.python_operator import PythonOperator
+    from datetime import datetime, timedelta
+
+    def evaluate_model():
+        # Code to initiate MLflow, load model, and log metrics
+        mlflow.set_tracking_uri("http://your-mlflow-server:5000")
+        with mlflow.start_run():
+            model = mlflow.pyfunc.load_model('models:/your-model/Production')
+            test_data, actual_labels = fetch_recent_data()  # Placeholder for actual data fetching function
+            predictions = model.predict(test_data)
+            accuracy = compute_accuracy(predictions, actual_labels)
+            mlflow.log_metric("accuracy", accuracy)
+
+    default_args = {
+        'owner': 'airflow',
+        'start_date': datetime(2023, 1, 1),
+        'email_on_failure': False,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+    }
+    dag = DAG('model_drift_evaluation', default_args=default_args, schedule_interval='@daily')
+
+    evaluate_task = PythonOperator(
+        task_id='evaluate_model_drift',
+        python_callable=evaluate_model,
+        dag=dag,
+    )
+    ```
+  - **Step 3:** Schedule and monitor the DAG. Use the Airflow UI to monitor the performance and output of the scheduled tasks, adjusting parameters as necessary based on model performance and drift detection outcomes.
+
+### Slide 7: Custom Metrics for Drift Detection
+- **Defining Custom Metrics:**
+  - **Purpose:** Custom metrics are critical for monitoring specific aspects of a model that generic metrics may not cover, particularly for detecting subtle types of drift that might otherwise go unnoticed.
+  - **Process:** Identify the most important characteristics of the model's output or input that relate directly to business objectives or performance indicators. These characteristics will guide the development of custom metrics.
+- **Implementation in MLflow:**
+  - **Metric Example:** A custom metric for average prediction confidence, which can serve as an indicator of concept drift. This metric tracks changes in the model’s confidence in its predictions, which may signal an underlying shift in the data or concept.
+  - **Python Code:**
+    ```python
+    import mlflow
+
+    def log_prediction_confidence(predictions):
+        confidence_scores = [pred.confidence for pred in predictions]  # Assuming predictions have a 'confidence' attribute
+        average_confidence = sum(confidence_scores) / len(confidence_scores)
+        mlflow.log_metric("average_confidence", average_confidence)
+
+    with mlflow.start_run():
+        predictions = model.predict(data)  # Ensure your model returns confidence scores
+        log_prediction_confidence(predictions)
+    ```
+- **Practical Considerations:** 
+  - **Setting Thresholds:** Determine thresholds for these metrics that, when crossed, will trigger investigations or actions. For example, a significant drop in prediction confidence might necessitate a model retraining or further data analysis.
+  - **Integration with Monitoring:** Seamlessly integrate these custom metrics into your overall monitoring framework to ensure continuous observation and timely response to potential drift.
+
+These expanded slides now provide a detailed roadmap for implementing and automating drift detection using Apache Airflow and custom metrics with MLflow, ensuring the audience can effectively plan, execute, and monitor their model maintenance strategies.
