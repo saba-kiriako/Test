@@ -1,0 +1,160 @@
+<html><head><style>body {
+   color: black;
+}
+</style></head><body><p>Let’s dive deeper into Slide 5, enhancing the explanation of the statistical methods used for drift detection, linking these methods directly to types of model drift, and providing detailed examples and Python code snippets.</p>
+<h3 id="slide-3-types-of-model-drift">Slide 3: Types of Model Drift</h3>
+<ul>
+<li><strong>Feature Drift:</strong> Occurs when the distribution of input features changes over time.<ul>
+<li><strong>Example:</strong> A loan approval model may experience feature drift if the economic conditions change, affecting customers&#39; income levels and spending behaviors.</li>
+</ul>
+</li>
+<li><strong>Concept Drift:</strong> Happens when the relationship between the input data and the output variable changes.<ul>
+<li><strong>Example:</strong> In a fraud detection system, concept drift can occur when fraudsters change their tactics, and the previous indicators of fraud no longer predict fraudulent activities correctly.</li>
+</ul>
+</li>
+<li><strong>Label Drift:</strong> Arises when the distribution of labels changes over time, often due to external factors or changes in how labels are defined.<ul>
+<li><strong>Example:</strong> In medical diagnosis models, label drift could result from changes in disease definitions or diagnostic criteria over time.</li>
+</ul>
+</li>
+</ul>
+<h3 id="slide-4-overview-of-mlflow">Slide 4: Overview of MLflow</h3>
+<ul>
+<li><strong>What is MLflow?</strong> An introduction to MLflow as a comprehensive open-source platform designed to manage the machine learning lifecycle, including experimentation, reproducibility, and deployment.</li>
+<li><strong>Components:</strong> Detailed overview of MLflow’s core components: Tracking, Projects, Models, and Registry.</li>
+</ul>
+<h3 id="slide-5-statistical-methods-for-drift-detection">Slide 5: Statistical Methods for Drift Detection</h3>
+<h4 id="1-chi-square-test-">1. <strong>Chi-Square Test</strong></h4>
+<ul>
+<li><strong>Purpose:</strong> Used primarily to detect feature drift in categorical data by comparing the observed frequencies of categories to their expected frequencies under the null hypothesis of no change in distribution.</li>
+<li><strong>Explanation:</strong><ul>
+<li>The Chi-Square test evaluates whether the distribution of categorical variables has changed significantly over time by measuring how observed frequencies deviate from expected frequencies.</li>
+<li>It’s especially useful for identifying shifts in categorical input features which can signal the onset of feature drift.</li>
+</ul>
+</li>
+<li><strong>Python Example:</strong><pre><code class="lang-python">from scipy.stats import chisquare
+observed = [<span class="hljs-number">50</span>, <span class="hljs-number">30</span>, <span class="hljs-number">20</span>]  # Observed frequencies at current evaluation
+expected = [<span class="hljs-number">40</span>, <span class="hljs-number">40</span>, <span class="hljs-number">20</span>]  # Expected frequencies based on historical data
+chi_stat, p_value = chisquare(observed, expected)
+print(f<span class="hljs-string">"Chi-square Stat: {chi_stat}, p-value: {p_value}"</span>)
+</code></pre>
+</li>
+<li><strong>Application:</strong> This test can be particularly useful in applications like marketing or credit risk models, where categorical features such as customer segment or loan type are critical.</li>
+</ul>
+<h4 id="2-kolmogorov-smirnov-test-ks-test-">2. <strong>Kolmogorov-Smirnov Test (KS Test)</strong></h4>
+<ul>
+<li><strong>Purpose:</strong> A nonparametric test used to determine if two continuous data distributions differ, which is useful for detecting both feature and concept drift.</li>
+<li><strong>Explanation:</strong><ul>
+<li>The KS Test measures the maximum distance between the cumulative distribution functions (CDFs) of two datasets, typically the empirical distribution functions of model inputs or outputs at different times.</li>
+<li>This method does not assume any specific distributional shape, making it versatile for real-world data.</li>
+</ul>
+</li>
+<li><strong>Python Example:</strong><pre><code class="lang-python">from scipy.stats import ks_2samp
+data1 = [<span class="hljs-number">0.1</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">0.3</span>, <span class="hljs-number">0.4</span>]  # Sample data from time T1
+data2 = [<span class="hljs-number">0.1</span>, <span class="hljs-number">0.25</span>, <span class="hljs-number">0.35</span>, <span class="hljs-number">0.5</span>]  # Sample data from time T2
+ks_stat, p_value = ks_2samp(data1, data2)
+print(f<span class="hljs-string">"KS Statistic: {ks_stat}, p-value: {p_value}"</span>)
+</code></pre>
+</li>
+<li><strong>Application:</strong> Useful in monitoring critical continuous input or output variables like probabilities of default in a financial model or changing user engagement metrics in a digital product over time.</li>
+</ul>
+<h4 id="3-cramer-von-mises-criterion-">3. <strong>Cramer-von Mises Criterion</strong></h4>
+<ul>
+<li><strong>Purpose:</strong> Another nonparametric test that is useful for assessing the similarity of two samples’ distributions, applicable for both feature and label drift.</li>
+<li><strong>Explanation:</strong><ul>
+<li>Similar to the KS Test, the Cramer-von Mises criterion compares the cumulative distribution functions of two samples but considers the integrated squared difference, offering a more sensitive measure than the KS Test.</li>
+</ul>
+</li>
+<li><strong>Python Example:</strong><pre><code class="lang-python">import numpy as np
+from scipy.stats import cramervonmises_2samp
+data1 = np.array([<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, <span class="hljs-number">4</span>])
+data2 = np.array([<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2.5</span>, <span class="hljs-number">3.5</span>])
+result = cramervonmises_2samp(data1, data2)
+print(f<span class="hljs-string">"Statistic: {result.statistic}, p-value: {result.pvalue}"</span>)
+</code></pre>
+</li>
+<li><strong>Application:</strong> This method can be beneficial in settings where small differences in distribution can have large impacts, such as in quality control processes or monitoring critical operational parameters in industrial applications.</li>
+</ul>
+<h3 id="visual-aids-for-slide-5-">Visual Aids for Slide 5:</h3>
+<ul>
+<li>Plots showing the distribution differences detected by each test.</li>
+<li>Diagrams explaining the mechanics of each statistical test.</li>
+<li>Tables summarizing test results and their implications for the model in question.</li>
+</ul>
+<p>Let&#39;s expand Slide 6 and Slide 7 with more comprehensive details and practical guidelines to enhance understanding.</p>
+<h3 id="slide-6-automating-drift-detection-with-apache-airflow">Slide 6: Automating Drift Detection with Apache Airflow</h3>
+<ul>
+<li><strong>Integration of MLflow with Airflow:</strong> <ul>
+<li><strong>Purpose:</strong> Airflow acts as an orchestrator for MLflow tasks, scheduling and automating the execution of model evaluations to check for drift on a regular basis.</li>
+<li><strong>Benefits:</strong> Automating with Airflow ensures that drift checks are performed consistently and efficiently, minimizing manual oversight and reducing the likelihood of missed drift detections.</li>
+</ul>
+</li>
+<li><p><strong>Example Workflow Configuration:</strong></p>
+<ul>
+<li><strong>Step 1:</strong> Set up the Airflow environment. This involves installing Airflow and setting up the necessary configurations, including the scheduler, executor, and web server components.</li>
+<li><p><strong>Step 2:</strong> Define the Airflow DAG (Directed Acyclic Graph). A DAG is a collection of tasks you want to run, organized in a way that reflects their relationships and dependencies.</p>
+<pre><code class="lang-python"><span class="hljs-keyword">from</span> airflow <span class="hljs-keyword">import</span> DAG
+<span class="hljs-keyword">from</span> airflow.operators.python_operator <span class="hljs-keyword">import</span> PythonOperator
+<span class="hljs-keyword">from</span> datetime <span class="hljs-keyword">import</span> datetime, timedelta
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">evaluate_model</span><span class="hljs-params">()</span>:</span>
+    <span class="hljs-comment"># Code to initiate MLflow, load model, and log metrics</span>
+    mlflow.set_tracking_uri(<span class="hljs-string">"http://your-mlflow-server:5000"</span>)
+    <span class="hljs-keyword">with</span> mlflow.start_run():
+        model = mlflow.pyfunc.load_model(<span class="hljs-string">'models:/your-model/Production'</span>)
+        test_data, actual_labels = fetch_recent_data()  <span class="hljs-comment"># Placeholder for actual data fetching function</span>
+        predictions = model.predict(test_data)
+        accuracy = compute_accuracy(predictions, actual_labels)
+        mlflow.log_metric(<span class="hljs-string">"accuracy"</span>, accuracy)
+
+default_args = {
+    <span class="hljs-string">'owner'</span>: <span class="hljs-string">'airflow'</span>,
+    <span class="hljs-string">'start_date'</span>: datetime(<span class="hljs-number">2023</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>),
+    <span class="hljs-string">'email_on_failure'</span>: <span class="hljs-keyword">False</span>,
+    <span class="hljs-string">'retries'</span>: <span class="hljs-number">1</span>,
+    <span class="hljs-string">'retry_delay'</span>: timedelta(minutes=<span class="hljs-number">5</span>),
+}
+dag = DAG(<span class="hljs-string">'model_drift_evaluation'</span>, default_args=default_args, schedule_interval=<span class="hljs-string">'@daily'</span>)
+
+evaluate_task = PythonOperator(
+    task_id=<span class="hljs-string">'evaluate_model_drift'</span>,
+    python_callable=evaluate_model,
+    dag=dag,
+)
+</code></pre>
+</li>
+<li><strong>Step 3:</strong> Schedule and monitor the DAG. Use the Airflow UI to monitor the performance and output of the scheduled tasks, adjusting parameters as necessary based on model performance and drift detection outcomes.</li>
+</ul>
+</li>
+</ul>
+<h3 id="slide-7-custom-metrics-for-drift-detection">Slide 7: Custom Metrics for Drift Detection</h3>
+<ul>
+<li><strong>Defining Custom Metrics:</strong><ul>
+<li><strong>Purpose:</strong> Custom metrics are critical for monitoring specific aspects of a model that generic metrics may not cover, particularly for detecting subtle types of drift that might otherwise go unnoticed.</li>
+<li><strong>Process:</strong> Identify the most important characteristics of the model&#39;s output or input that relate directly to business objectives or performance indicators. These characteristics will guide the development of custom metrics.</li>
+</ul>
+</li>
+<li><p><strong>Implementation in MLflow:</strong></p>
+<ul>
+<li><strong>Metric Example:</strong> A custom metric for average prediction confidence, which can serve as an indicator of concept drift. This metric tracks changes in the model’s confidence in its predictions, which may signal an underlying shift in the data or concept.</li>
+<li><p><strong>Python Code:</strong></p>
+<pre><code class="lang-python"><span class="hljs-keyword">import</span> mlflow
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">log_prediction_confidence</span><span class="hljs-params">(predictions)</span>:</span>
+    confidence_scores = [pred.confidence <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> predictions]  <span class="hljs-comment"># Assuming predictions have a 'confidence' attribute</span>
+    average_confidence = sum(confidence_scores) / len(confidence_scores)
+    mlflow.log_metric(<span class="hljs-string">"average_confidence"</span>, average_confidence)
+
+<span class="hljs-keyword">with</span> mlflow.start_run():
+    predictions = model.predict(data)  <span class="hljs-comment"># Ensure your model returns confidence scores</span>
+    log_prediction_confidence(predictions)
+</code></pre>
+</li>
+</ul>
+</li>
+<li><strong>Practical Considerations:</strong> <ul>
+<li><strong>Setting Thresholds:</strong> Determine thresholds for these metrics that, when crossed, will trigger investigations or actions. For example, a significant drop in prediction confidence might necessitate a model retraining or further data analysis.</li>
+<li><strong>Integration with Monitoring:</strong> Seamlessly integrate these custom metrics into your overall monitoring framework to ensure continuous observation and timely response to potential drift.</li>
+</ul>
+</li>
+</ul>
+</body></html>
