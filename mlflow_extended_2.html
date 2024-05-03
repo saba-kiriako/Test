@@ -158,3 +158,37 @@ evaluate_task = PythonOperator(
 </li>
 </ul>
 </body></html>
+
+
+<html><head><style>body {
+   color: black;
+}
+</style></head><body><p>MLflow is a powerful tool for managing the machine learning lifecycle, including tracking experiments, packaging code into reproducible runs, and sharing and deploying models. When using XGBoost with MLflow, there are several metrics and parameters you can monitor and log to evaluate the performance of your models. Here&#39;s a breakdown of typical metrics and parameters you might track:</p>
+<h3 id="metrics-to-monitor">Metrics to Monitor</h3>
+<ol>
+<li><strong>Accuracy</strong>: This is the proportion of correctly predicted observations to the total observations and is particularly useful for classification problems.</li>
+<li><strong>Precision, Recall, and F1-Score</strong>: These metrics provide a more detailed insight into classification model performance, especially when dealing with imbalanced datasets.</li>
+<li><strong>AUC-ROC</strong>: The area under the receiver operating characteristic curve; a higher AUC-ROC score represents a model with better performance at distinguishing between the positive and negative classes.</li>
+<li><strong>Log Loss</strong>: Particularly useful for binary classification problems, log loss provides a measure of accuracy where the prediction input is a probability value between 0 and 1.</li>
+<li><strong>Mean Absolute Error (MAE)</strong> and <strong>Mean Squared Error (MSE)</strong>: Common metrics for regression tasks, providing information on the average magnitude of errors in a set of predictions.</li>
+<li><strong>Root Mean Squared Error (RMSE)</strong>: Measures the standard deviation of the residuals (prediction errors) in regression.</li>
+</ol>
+<h3 id="parameters-to-log">Parameters to Log</h3>
+<ol>
+<li><strong>Learning Rate</strong>: This is a hyperparameter that controls how much the model is adjusted based on the error each time the model weights are updated.</li>
+<li><strong>Number of Trees (n_estimators)</strong>: In gradient boosting models like XGBoost, this parameter refers to the number of trees you build (an ensemble of trees).</li>
+<li><strong>Max Depth</strong>: The maximum depth of a tree. Increasing this value will make the model more complex and more likely to fit better to the training data, possibly leading to overfitting.</li>
+<li><strong>Subsample</strong>: The fraction of samples to be used for fitting the individual base learners. Setting it below 1.0 can lead to a reduction of variance and an increase in bias.</li>
+<li><strong>ColSample by Tree/Level/Node</strong>: These parameters control the subsampling of columns before constructing each tree (bytree), at each split (bylevel), or at each node (bynode). They are used for adding more randomness to make training robust to noise.</li>
+</ol>
+<h3 id="how-to-use-mlflow-with-xgboost">How to Use MLflow with XGBoost</h3>
+<p>To use MLflow with XGBoost, you typically:</p>
+<ol>
+<li><strong>Initialize MLflow</strong>: Start by setting up MLflow and creating an experiment.</li>
+<li><strong>Log Parameters</strong>: Use <code>mlflow.log_param()</code> to log various hyperparameters of the XGBoost model.</li>
+<li><strong>Train Model</strong>: Train your XGBoost model as usual.</li>
+<li><strong>Log Metrics</strong>: After training, use <code>mlflow.log_metric()</code> to log important metrics like RMSE, MAE, or accuracy.</li>
+<li><strong>Log Model</strong>: Save and log the XGBoost model itself using <code>mlflow.xgboost.log_model()</code>.</li>
+</ol>
+<p>This setup allows you to track how changes in hyperparameters affect model performance and compare different runs within an organized framework.</p>
+</body></html>
