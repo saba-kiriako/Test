@@ -262,151 +262,155 @@ evaluate_task = PythonOperator(
 <p>While it&#39;s possible to store MLflow logs in Elasticsearch, it might not always be the best or the simplest solution. Evaluating your specific needs for data access, search capabilities, and operational management will help determine the best architecture for your project.</p>
 
 
-import mlflow
-import mlflow.sklearn
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.datasets import load_boston
-from sklearn.metrics import mean_squared_error
-
-# Set the MLflow tracking URI to point to your MLflow server
-mlflow.set_tracking_uri("http://your_mlflow_server:5000")
-
-# Load the dataset
-data = load_boston()
-X = data.data
-y = data.target
-
-# Split the data into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Start an MLflow run
-with mlflow.start_run():
-    # Create and train the model
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-
-    # Make predictions
-    predictions = model.predict(X_test)
-
-    # Calculate metrics
-    mse = mean_squared_error(y_test, predictions)
-
-    # Log parameters, metrics, and model
-    mlflow.log_param("model", "LinearRegression")
-    mlflow.log_metric("mse", mse)
-    mlflow.sklearn.log_model(model, "model")
-
-    print(f"Logged data and model in run: {mlflow.active_run().info.run_id}")
-
-
-
-
-
-To copy all the artifacts, models, and metadata from one MLflow server to another, you'll need to follow these steps:
-
-1. **Set Up Access to Both Servers**:
-   Ensure you have access to both MLflow servers, including their tracking URIs and necessary credentials if required.
-
-2. **Export Data from the First MLflow Server**:
-   You'll need to extract experiments, runs, models, and artifacts from the first server. This involves:
-
-   - **Export Experiment Metadata**:
-     Use the MLflow API to list all experiments and save their metadata.
-
-     ```python
-     import mlflow
-
-     mlflow.set_tracking_uri("http://first_mlflow_server")
-     experiments = mlflow.list_experiments()
-
-     with open("experiments_metadata.json", "w") as f:
-         json.dump([exp.to_dictionary() for exp in experiments], f)
-     ```
-
-   - **Export Runs Metadata**:
-     For each experiment, list all runs and save their metadata.
-
-     ```python
-     import json
-
-     runs_metadata = {}
-     for experiment in experiments:
-         runs = mlflow.search_runs(experiment_ids=[experiment.experiment_id])
-         runs_metadata[experiment.experiment_id] = runs.to_dict(orient="records")
-
-     with open("runs_metadata.json", "w") as f:
-         json.dump(runs_metadata, f)
-     ```
-
-   - **Download Artifacts**:
-     Use the MLflow API to download artifacts for each run.
-
-     ```python
-     import os
-     import shutil
-
-     for experiment_id, runs in runs_metadata.items():
-         for run in runs:
-             run_id = run['run_id']
-             artifacts = mlflow.artifacts.list_artifacts(run_id)
-             for artifact in artifacts:
-                 mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path=artifact.path, dst_path=f"artifacts/{experiment_id}/{run_id}")
-     ```
-
-3. **Transfer Data to the Second MLflow Server**:
-   - **Upload Experiment Metadata**:
-     Use the MLflow API to create new experiments on the second server with the exported metadata.
-
-     ```python
-     mlflow.set_tracking_uri("http://second_mlflow_server")
-
-     with open("experiments_metadata.json", "r") as f:
-         experiments_metadata = json.load(f)
-
-     for exp_metadata in experiments_metadata:
-         mlflow.create_experiment(name=exp_metadata['name'], artifact_location=exp_metadata['artifact_location'])
-     ```
-
-   - **Upload Runs Metadata**:
-     Create runs for each experiment on the second server with the exported metadata.
-
-     ```python
-     with open("runs_metadata.json", "r") as f:
-         runs_metadata = json.load(f)
-
-     for experiment_id, runs in runs_metadata.items():
-         for run in runs:
-             with mlflow.start_run(experiment_id=experiment_id, run_name=run['run_name']):
-                 for param in run['params']:
-                     mlflow.log_param(param['key'], param['value'])
-                 for metric in run['metrics']:
-                     mlflow.log_metric(metric['key'], metric['value'])
-                 for tag in run['tags']:
-                     mlflow.set_tag(tag['key'], tag['value'])
-     ```
-
-   - **Upload Artifacts**:
-     Use the MLflow API to upload artifacts for each run.
-
-     ```python
-     for experiment_id, runs in runs_metadata.items():
-         for run in runs:
-             run_id = run['run_id']
-             artifact_dir = f"artifacts/{experiment_id}/{run_id}"
-             if os.path.exists(artifact_dir):
-                 for root, _, files in os.walk(artifact_dir):
-                     for file in files:
-                         artifact_path = os.path.relpath(os.path.join(root, file), artifact_dir)
-                         mlflow.log_artifact(os.path.join(root, file), artifact_path)
-     ```
-
-4. **Verify the Transfer**:
-   Check the second MLflow server to ensure that all experiments, runs, and artifacts have been successfully transferred.
-
-5. **Handle Errors and Exceptions**:
-   Ensure you have error handling in place to manage issues like network failures, permission issues, and data inconsistencies.
-
 This process can be automated and improved based on specific requirements, such as handling large datasets, dealing with network issues, or optimizing performance. Always ensure that you have proper backups before starting the transfer process.
 <p>This setup allows you to track how changes in hyperparameters affect model performance and compare different runs within an organized framework.</p>
+
+
+Certainly! Below are two Python scripts: one for extracting all data from an MLflow server and another for uploading the extracted data to another MLflow server.
+
+### Script 1: Extract Everything from MLflow
+
+This script will extract experiments, runs, and artifacts from the MLflow server and save them to local files.
+
+```python
+import mlflow
+from mlflow.tracking import MlflowClient
+import json
+import os
+import shutil
+
+# Set the MLflow tracking URI to point to your MLflow server
+mlflow.set_tracking_uri("http://first_mlflow_server:5000")
+client = MlflowClient()
+
+# Directory to save extracted data
+output_dir = "mlflow_extraction"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# Extract experiments
+experiments = client.list_experiments()
+experiments_data = []
+
+for experiment in experiments:
+    experiment_data = {
+        "experiment_id": experiment.experiment_id,
+        "name": experiment.name,
+        "artifact_location": experiment.artifact_location,
+        "lifecycle_stage": experiment.lifecycle_stage
+    }
+    experiments_data.append(experiment_data)
+
+    # Extract runs for each experiment
+    runs = client.search_runs(experiment_ids=[experiment.experiment_id])
+    runs_data = []
+
+    for run in runs:
+        run_data = {
+            "run_id": run.info.run_id,
+            "status": run.info.status,
+            "artifact_uri": run.info.artifact_uri,
+            "start_time": run.info.start_time,
+            "end_time": run.info.end_time,
+            "metrics": run.data.metrics,
+            "params": run.data.params,
+            "tags": run.data.tags
+        }
+        runs_data.append(run_data)
+
+        # Extract artifacts for each run
+        artifacts_dir = os.path.join(output_dir, experiment.name, run.info.run_id, "artifacts")
+        if not os.path.exists(artifacts_dir):
+            os.makedirs(artifacts_dir)
+        artifacts = client.list_artifacts(run.info.run_id)
+        for artifact in artifacts:
+            local_path = client.download_artifacts(run.info.run_id, artifact.path, artifacts_dir)
+
+    # Save runs data to file
+    runs_file_path = os.path.join(output_dir, experiment.name, "runs.json")
+    with open(runs_file_path, "w") as f:
+        json.dump(runs_data, f, indent=4)
+
+# Save experiments data to file
+experiments_file_path = os.path.join(output_dir, "experiments.json")
+with open(experiments_file_path, "w") as f:
+    json.dump(experiments_data, f, indent=4)
+
+print(f"Extraction completed. Data saved to {output_dir}")
+```
+
+### Script 2: Upload Everything to MLflow
+
+This script will upload the extracted data to another MLflow server.
+
+```python
+import mlflow
+from mlflow.tracking import MlflowClient
+import json
+import os
+
+# Set the MLflow tracking URI to point to your MLflow server
+mlflow.set_tracking_uri("http://second_mlflow_server:5000")
+client = MlflowClient()
+
+# Directory containing the extracted data
+input_dir = "mlflow_extraction"
+
+# Load experiments data from file
+experiments_file_path = os.path.join(input_dir, "experiments.json")
+with open(experiments_file_path, "r") as f:
+    experiments_data = json.load(f)
+
+for experiment_data in experiments_data:
+    # Create experiment on the new server
+    experiment_id = client.create_experiment(
+        name=experiment_data["name"],
+        artifact_location=experiment_data["artifact_location"]
+    )
+
+    # Load runs data from file
+    runs_file_path = os.path.join(input_dir, experiment_data["name"], "runs.json")
+    with open(runs_file_path, "r") as f:
+        runs_data = json.load(f)
+
+    for run_data in runs_data:
+        with mlflow.start_run(experiment_id=experiment_id, run_name=run_data["run_id"]):
+            # Log metrics, params, and tags
+            for metric, value in run_data["metrics"].items():
+                mlflow.log_metric(metric, value)
+            for param, value in run_data["params"].items():
+                mlflow.log_param(param, value)
+            for tag, value in run_data["tags"].items():
+                mlflow.set_tag(tag, value)
+
+            # Log artifacts
+            artifacts_dir = os.path.join(input_dir, experiment_data["name"], run_data["run_id"], "artifacts")
+            if os.path.exists(artifacts_dir):
+                for root, _, files in os.walk(artifacts_dir):
+                    for file in files:
+                        artifact_path = os.path.relpath(os.path.join(root, file), artifacts_dir)
+                        mlflow.log_artifact(os.path.join(root, file), artifact_path)
+
+print("Upload completed.")
+```
+
+### Instructions to Use the Scripts
+
+1. **Run the Extraction Script**:
+    - Set the tracking URI in the extraction script to point to your first MLflow server.
+    - Execute the script to extract data.
+
+    ```bash
+    python extract_mlflow_data.py
+    ```
+
+2. **Run the Upload Script**:
+    - Set the tracking URI in the upload script to point to your second MLflow server.
+    - Execute the script to upload data.
+
+    ```bash
+    python upload_mlflow_data.py
+    ```
+
+These scripts will allow you to extract all experiments, runs, and artifacts from one MLflow server and upload them to another MLflow server. Make sure the directories and paths in the scripts match your local setup.
 </body></html>
