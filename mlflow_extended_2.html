@@ -414,3 +414,29 @@ print("Upload completed.")
 
 These scripts will allow you to extract all experiments, runs, and artifacts from one MLflow server and upload them to another MLflow server. Make sure the directories and paths in the scripts match your local setup.
 </body></html>
+
+
+import shutil
+import os
+
+def zip_folder(folder_path, output_path):
+    """
+    Zips the contents of a folder.
+
+    Parameters:
+    folder_path (str): Path to the folder to be zipped.
+    output_path (str): Output path for the zip file (without .zip extension).
+    """
+    # Ensure the folder exists
+    if not os.path.exists(folder_path):
+        print(f"Error: The folder {folder_path} does not exist.")
+        return
+
+    # Create a zip file
+    shutil.make_archive(output_path, 'zip', folder_path)
+    print(f"Folder {folder_path} has been zipped to {output_path}.zip")
+
+# Example usage
+folder_to_zip = 'path/to/your/folder'
+zip_output_path = 'path/to/output/folder_name'
+zip_folder(folder_to_zip, zip_output_path)
