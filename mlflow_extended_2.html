@@ -478,3 +478,135 @@ def unzip_file(zip_path, extract_to):
 zip_file_path = 'path/to/your/zipfile.zip'
 extract_to_path = 'path/to/extract/directory'
 unzip_file(zip_file_path, extract_to_path)
+
+
+
+
+
+
+import mlflow
+from mlflow.tracking import MlflowClient
+import json
+import os
+
+# Set the MLflow tracking URI to point to your MLflow server
+mlflow.set_tracking_uri("http://first_mlflow_server:5000")
+client = MlflowClient()
+
+# Directory to save extracted data
+output_dir = "mlflow_extraction"
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
+
+# Extract registered models
+models = client.list_registered_models()
+models_data = []
+
+for model in models:
+    model_data = {
+        "name": model.name,
+        "creation_timestamp": model.creation_timestamp,
+        "last_updated_timestamp": model.last_updated_timestamp,
+        "description": model.description,
+        "latest_versions": []
+    }
+
+    for version in model.latest_versions:
+        version_data = {
+            "version": version.version,
+            "run_id": version.run_id,
+            "status": version.status,
+            "stage": version.current_stage,
+            "creation_timestamp": version.creation_timestamp,
+            "last_updated_timestamp": version.last_updated_timestamp,
+            "source": version.source,
+            "run_link": version.run_link
+        }
+        model_data["latest_versions"].append(version_data)
+
+        # Download model artifacts
+        model_artifacts_dir = os.path.join(output_dir, "models", model.name, version.version)
+        if not os.path.exists(model_artifacts_dir):
+            os.makedirs(model_artifacts_dir)
+        client.download_artifacts(version.run_id, "", model_artifacts_dir)
+
+    models_data.append(model_data)
+
+# Save models data to file
+models_file_path = os.path.join(output_dir, "models.json")
+with open(models_file_path, "w") as f:
+    json.dump(models_data, f, indent=4)
+
+print(f"Extraction of registered models completed. Data saved to {output_dir}")
+
+
+
+
+
+
+
+
+
+
+
+
+import mlflow
+from mlflow.tracking import MlflowClient
+import json
+import os
+
+# Set the MLflow tracking URI to point to your MLflow server
+mlflow.set_tracking_uri("http://second_mlflow_server:5000")
+client = MlflowClient()
+
+# Directory containing the extracted data
+input_dir = "mlflow_extraction"
+
+# Load models data from file
+models_file_path = os.path.join(input_dir, "models.json")
+with open(models_file_path, "r") as f:
+    models_data = json.load(f)
+
+for model_data in models_data:
+    # Create the registered model on the new server
+    client.create_registered_model(model_data["name"])
+    
+    # Add description to the model if exists
+    if model_data["description"]:
+        client.update_registered_model(
+            name=model_data["name"],
+            description=model_data["description"]
+        )
+    
+    for version_data in model_data["latest_versions"]:
+        # Create a new version of the model
+        new_version = client.create_model_version(
+            name=model_data["name"],
+            source=version_data["source"],
+            run_id=version_data["run_id"]
+        )
+        
+        # Update model version stage
+        client.transition_model_version_stage(
+            name=model_data["name"],
+            version=new_version.version,
+            stage=version_data["stage"]
+        )
+        
+        # Add description to the model version if exists
+        if version_data["description"]:
+            client.update_model_version(
+                name=model_data["name"],
+                version=new_version.version,
+                description=version_data["description"]
+            )
+        
+        # Download and log artifacts for the new version
+        model_artifacts_dir = os.path.join(input_dir, "models", model_data["name"], version_data["version"])
+        if os.path.exists(model_artifacts_dir):
+            for root, _, files in os.walk(model_artifacts_dir):
+                for file in files:
+                    artifact_path = os.path.relpath(os.path.join(root, file), model_artifacts_dir)
+                    mlflow.log_artifact(os.path.join(root, file), artifact_path)
+
+print("Upload of registered models and versions completed.")
