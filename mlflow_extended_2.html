@@ -610,3 +610,29 @@ for model_data in models_data:
                     mlflow.log_artifact(os.path.join(root, file), artifact_path)
 
 print("Upload of registered models and versions completed.")
+
+
+
+import numpy as np
+
+# Assuming xor_result contains 128-bit integers
+def fast_bit_count(x):
+    # Count bits for 64-bit chunks
+    x = (x & 0x5555555555555555) + ((x & 0xAAAAAAAAAAAAAAAA) >> 1)
+    x = (x & 0x3333333333333333) + ((x & 0xCCCCCCCCCCCCCCCC) >> 2)
+    x = (x & 0x0F0F0F0F0F0F0F0F) + ((x & 0xF0F0F0F0F0F0F0F0) >> 4)
+    x = (x & 0x00FF00FF00FF00FF) + ((x & 0xFF00FF00FF00FF00) >> 8)
+    x = (x & 0x0000FFFF0000FFFF) + ((x & 0xFFFF0000FFFF0000) >> 16)
+    return (x & 0x00000000FFFFFFFF) + (x >> 32)
+
+# Vectorize the fast_bit_count function
+vectorized_fast_bit_count = np.vectorize(fast_bit_count, otypes=[np.int64])
+
+# Calculate the bit count for both 64-bit parts and sum them
+lower_bits = xor_result & ((1 << 64) - 1)
+upper_bits = xor_result >> 64
+
+bin_count = vectorized_fast_bit_count(lower_bits) + vectorized_fast_bit_count(upper_bits)
+
+# Calculate 1 - bin_count
+one_minus_bin_count = 128 - bin_count  # Use 128 instead of 1
