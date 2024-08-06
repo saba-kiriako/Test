@@ -636,3 +636,158 @@ bin_count = vectorized_fast_bit_count(lower_bits) + vectorized_fast_bit_count(up
 
 # Calculate 1 - bin_count
 one_minus_bin_count = 128 - bin_count  # Use 128 instead of 1
+
+
+
+
+
+
+
+
+
+   To compare the performance of the optimized and non-optimized functions, we can create a loop that randomly samples subsets of the true and false alerts, runs both functions, measures the execution time and memory usage, and then compares the results. Here's a complete script to achieve this:
+
+1. Sample 1000 true alerts and 1000 false alerts.
+2. Run the optimized function and measure its performance.
+3. Run the non-optimized function and measure its performance.
+4. Compare the outputs of both functions.
+5. Repeat the process and collect the performance metrics.
+
+We'll use Python's `time` module to measure execution time and the `memory_profiler` library to measure memory usage. 
+
+First, install the `memory_profiler` library if you haven't already:
+
+```sh
+pip install memory-profiler
+```
+
+Now, here’s the complete script:
+
+```python
+import pandas as pd
+import numpy as np
+import time
+from memory_profiler import memory_usage
+import random
+
+# Example DataFrames with 5 features as strings and a 'syd' column in the true alerts DataFrame
+df_true = pd.DataFrame({
+    'x1': np.random.choice(['10', '1500000000000000', '5'], 10000), 
+    'x2': np.random.choice(['20', '25', '1000000000000000'], 10000),
+    'x3': np.random.choice(['30', '3500000000000000', '15'], 10000), 
+    'x4': np.random.choice(['40', '45', '2000000000000000'], 10000),
+    'x5': np.random.choice(['50', '55', '2500000000000000'], 10000), 
+    'syd': [random.sample(['x1', 'x2', 'x3', 'x4', 'x5'], random.randint(1, 5)) for _ in range(10000)]
+})
+
+df_false = pd.DataFrame({
+    'x1': np.random.choice(['5', '8'], 10000), 
+    'x2': np.random.choice(['12', '1800000000000000'], 10000),
+    'x3': np.random.choice(['2500000000000000', '28'], 10000), 
+    'x4': np.random.choice(['3500000000000000', '38'], 10000),
+    'x5': np.random.choice(['4500000000000000', '48'], 10000)
+})
+
+features = ['x1', 'x2', 'x3', 'x4', 'x5']
+base_weights = np.array([0.2, 0.3, 0.1, 0.25, 0.15])
+
+def safe_int_conversion(df, columns):
+    for col in columns:
+        df[col] = df[col].apply(int)
+    return df
+
+def calculate_mean_distances_optimized(df_true, df_false, features, base_weights, n_closest=1):
+    df_true = safe_int_conversion(df_true, features)
+    df_false = safe_int_conversion(df_false, features)
+    false_coords = df_false[features].values
+    true_coords = df_true[features].values
+    syd_mask = np.array([[feature in syd for feature in features] for syd in df_true['syd']])
+    weights_matrix = syd_mask * base_weights
+    xor_result = np.bitwise_xor(false_coords[:, np.newaxis], true_coords)
+
+    def count_bits(x):
+        counts = np.zeros_like(x, dtype=np.int64)
+        masks = np.array([1 << i for i in range(64)], dtype=np.int64)
+        for mask in masks:
+            counts += (x & mask).astype(bool).astype(np.int64)
+        return counts
+
+    bin_count = count_bits(xor_result)
+    one_minus_bin_count = 1 - bin_count
+    weighted_distances = one_minus_bin_count * weights_matrix[np.newaxis, :, :]
+    distances = weighted_distances.sum(axis=2)
+    closest_indices = np.argsort(distances, axis=1)[:, :n_closest]
+    closest_distances = np.take_along_axis(distances, closest_indices, axis=1)
+    mean_distances = closest_distances.mean(axis=1)
+    df_false['mean_distance'] = mean_distances
+
+    return df_false
+
+def calculate_mean_distances_non_optimized(df_true, df_false, features, base_weights, n_closest=1):
+    df_true = safe_int_conversion(df_true, features)
+    df_false = safe_int_conversion(df_false, features)
+    false_coords = df_false[features].values
+    true_coords = df_true[features].values
+    syd_mask = np.array([[feature in syd for feature in features] for syd in df_true['syd']])
+    weights_matrix = syd_mask * base_weights
+    xor_result = np.bitwise_xor(false_coords[:, np.newaxis], true_coords)
+
+    def count_ones(x):
+        return bin(x).count('1')
+
+    vectorized_count_ones = np.vectorize(count_ones)
+    bin_count = vectorized_count_ones(xor_result)
+    one_minus_bin_count = 1 - bin_count
+    weighted_distances = one_minus_bin_count * weights_matrix[np.newaxis, :, :]
+    distances = weighted_distances.sum(axis=2)
+    closest_indices = np.argsort(distances, axis=1)[:, :n_closest]
+    closest_distances = np.take_along_axis(distances, closest_indices, axis=1)
+    mean_distances = closest_distances.mean(axis=1)
+    df_false['mean_distance'] = mean_distances
+
+    return df_false
+
+def measure_performance(func, df_true_sample, df_false_sample, features, base_weights):
+    start_time = time.time()
+    mem_usage = memory_usage((func, (df_true_sample, df_false_sample, features, base_weights)), max_usage=True)
+    end_time = time.time()
+    execution_time = end_time - start_time
+    return execution_time, mem_usage
+
+results = []
+iterations = 10
+
+for _ in range(iterations):
+    df_true_sample = df_true.sample(n=1000)
+    df_false_sample = df_false.sample(n=1000)
+
+    exec_time_opt, mem_usage_opt = measure_performance(calculate_mean_distances_optimized, df_true_sample, df_false_sample, features, base_weights)
+    exec_time_non_opt, mem_usage_non_opt = measure_performance(calculate_mean_distances_non_optimized, df_true_sample, df_false_sample, features, base_weights)
+
+    result = {
+        'iteration': _ + 1,
+        'exec_time_opt': exec_time_opt,
+        'mem_usage_opt': mem_usage_opt,
+        'exec_time_non_opt': exec_time_non_opt,
+        'mem_usage_non_opt': mem_usage_non_opt,
+        'output_match': calculate_mean_distances_optimized(df_true_sample.copy(), df_false_sample.copy(), features, base_weights).equals(
+            calculate_mean_distances_non_optimized(df_true_sample.copy(), df_false_sample.copy(), features, base_weights)
+        )
+    }
+    results.append(result)
+
+# Convert results to DataFrame and display
+results_df = pd.DataFrame(results)
+import ace_tools as tools; tools.display_dataframe_to_user(name="Performance Comparison", dataframe=results_df)
+
+print(results_df)
+```
+
+In this script:
+1. We generate random data for `df_true` and `df_false`.
+2. We define both the optimized and non-optimized functions.
+3. We create a `measure_performance` function to measure execution time and memory usage of a given function.
+4. We loop through a specified number of iterations, randomly sampling 1000 rows from `df_true` and `df_false` each time, and measure the performance of both functions.
+5. The results, including execution time, memory usage, and output match, are stored in a DataFrame and displayed.
+
+This script will allow you to compare the performance of both functions and verify if their outputs match.
